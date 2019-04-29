@@ -1,5 +1,6 @@
 #include<iostream>
 #include<string.h>
+#include<exception>
 
 
 using namespace std;
@@ -33,7 +34,7 @@ public:
     {
         return price;
     }
-    virtual void getdetail()=0;
+    virtual void getdetails()=0;
     virtual string getType()=0;
 
 };
@@ -108,10 +109,18 @@ public:
         ii[itemcount]->addunits(units);
         itemcount+=1;
     }
-    items *getItems()
+    items **getItems()
     {
-
+        return ii;
     }
+    void print()
+    {
+        for(int i=0;i<itemcount;i++)
+        {
+            ii[i]->getdetails();
+        }
+    }
+
     int getTotal()
     {
         for(int i=0;i<itemcount;i++)
@@ -120,30 +129,37 @@ public:
         }
         return totalprice;
     }
+    int getitemscount()
+    {
+        return itemcount;
+    }
 };
 
 class customer
 {
 public:
-    int custid;
     string custname;
     cart c;
 
 public:
-    customer(int ccustid=-1,string ccustname=""):custid(custid),custname(ccustname)
+    customer(string ccustname=""):custname(ccustname)
     {
     }
 
-    items *searchitem(items **it,int itemsize,string itemname,int units)
+    items *searchitem(items **it,int itemsize,string itemname,int units,string type)
     {
+        int flag=0;
         for(int i=0;i<itemsize;i++)
         {
-            if(it[i]->getName()==itemname)
+            if(it[i]->getName()==itemname && it[i]->getType()==type)
             {
+                flag=1;
                 it[i]->subtractunits(units);
                 additemtocart(it[i],units);
             }
         }
+        if(flag==0)
+            throw "Item Not Found";
     }
 
     bool additemtocart(items *item,int units)
@@ -190,9 +206,20 @@ public:
         return instance;
     }
 
+    void setnoofitems(int no)
+    {
+        noofitems=no;
+    }
     items **getItems()
     {
         return this->i;
+    }
+    void printitems()
+    {
+        for(int j=0;j<noofitems;j++)
+        {
+            i[j]->getdetails();
+        }
     }
     void printshopdetails()
     {
@@ -203,14 +230,33 @@ public:
     {
         i[noofitems]=ii;
         noofitems++;
+        cout<<"Items Successfully Added"<<endl;
     }
 
-    void removeitems(items *ii)
+    void removeitems(string itemname,string type)
     {
-
+        int flag=1;
+        for(int j=0;j<noofitems;j++)
+        {
+            if(i[j]->getName()==itemname && i[j]->getType()==type)
+            {
+                flag=0;
+                i[j]->addunits(0);
+                cout<<"Item Removed Successfully\n";
+            }
+        }
+        if(flag==1)
+        {
+            throw "Name not found";
+        }
     }
 
-    void authentication()
+    int getnoofitems()
+    {
+        return noofitems;
+    }
+
+    int authentication()
     {
         string usr,pswd;
         cout<<"Enter the username: ";
@@ -223,12 +269,17 @@ public:
             {
                 throw "\nAuthentication Failure\n";
             }
+            else
+                  cout<<"\nAuthentication successful\n";
+                  return 0;
         }
-        catch(string s)
+
+        catch(const char *msg)
         {
-            cout<<s;
+            cout<<msg;
+            return 1;
         }
-        cout<<"\nAuthentication successful\n";
+
     }
 };
 
@@ -236,7 +287,10 @@ shop* shop::instance=NULL;
 
 int main(int argc, char** argv)
 {
-    int choice;
+    int choice,choice1,choice2,n,flag;
+    string name,type;
+    int price,units;
+    string brand,condition;
     customer cust[100];
     items *itms[100];
     shop *sp;
@@ -251,11 +305,140 @@ int main(int argc, char** argv)
         switch (choice)
         {
             case 1:
-                sp->authentication();
-                break;
+                flag=sp->authentication();
+                if(flag==1)
+                {}
+                else
+                {
+                cout<<"__________Owner__________"<<endl;
+                cout<<"1>Add Items"<<endl;
+                cout<<"2>Delete Items"<<endl;
+                cout<<"3>View Items"<<endl;
+                cout<<"4>Exit"<<endl;
+                cout<<"Enter your choice: ";
+                cin>>choice1;
+                switch(choice1)
+                {
+                     case 1:
+                                    cout<<"Enter the No of Unique Items to be added : ";
+                                    cin>>n;
+                                    cout<<"Enter the items to be Added : "<<endl;
+                                    for(int i=0;i<n;i++)
+                                    {
+                                        cout<<"1>Stationary"<<endl;
+                                        cout<<"2>Newspaper"<<endl;
+                                        cout<<"3>Book"<<endl;
+                                         cout<<"Enter the type of Item: ";
+                                        cin>>choice2;
+                                        switch(choice2)
+                                        {
+                                            items *tempi;
+                                            case 1:cout<<"Enter the Name,Price,Units,Brand :";
+                                            cin>>name>>price>>units>>brand;
+                                            tempi=new stationary(name,price,units,brand);
+                                            sp->additems(tempi);
+                                            break;
+                                            case 2:cout<<"Enter the Name,Price,Units,Publisher:";
+                                            cin>>name>>price>>units>>brand;
+                                            tempi=new newspaper(name,price,units,brand);
+                                            sp->additems(tempi);
+                                            break;
+                                            case 3:cout<<"Enter the Name,Price,Units,Author,Condition :";
+                                            cin>>name>>price>>units>>brand>>condition;
+                                            tempi=new book(name,price,units,brand,condition);
+                                            sp->additems(tempi);
+                                            break;
+                                            default : cout<<"Invalid Entry";
+                                        }
 
+                                    }
+                                    break;
+                        case 2:
+                                       cout<<"1>Stationary"<<endl;
+                                       cout<<"2>Newspaper"<<endl;
+                                       cout<<"3>Book"<<endl;
+                                       cout<<"Enter the type of item to be deleted : ";
+                                       cin>>choice2;
+                                       try
+                                       {
+                                       switch(choice2)
+                                       {
+                                       case 1 :
+                                                        cout<<"Enter the name of Item to be deleted :";
+                                                        cin>>name;
+                                                        sp->removeitems(name,"Stationary");
+                                                        break;
+                                       case 2:
+                                                        cout<<"Enter the name of Item to be deleted :";
+                                                        cin>>name;
+                                                        sp->removeitems(name,"Newspaper");
+                                                        break;
+                                       case 3 :
+                                                        cout<<"Enter the name of Item to be deleted :";
+                                                        cin>>name;
+                                                        sp->removeitems(name,"Book");
+                                                        break;
+                                       }
+                                       }
+                                       catch(const char * msg)
+                                       {
+                                           cout<<msg<<endl;
+                                       }
+                                       break;
+                        case 3:sp->printitems();
+                                    break;
+                        case 4:return 0;
+                }
+                }
+                break;
             case 2:
+                {
                 cout<<"Welcome!\n";
+                cout<<"Enter your Name :";
+                cin>>name;
+                customer c(name);
+                while(1)
+                {
+                try
+                {
+                cout<<"__________Customer__________"<<endl;
+                cout<<"1>Add Items"<<endl;
+                cout<<"2> View Items"<<endl;
+                cout<<"3>Generate Bill"<<endl;
+                cout<<"4>Exit"<<endl;
+                cout<<"Enter your choice: ";
+                cin>>choice1;
+                switch(choice1)
+                {
+                case 1:
+                    {
+                    cout<<"Enter the no of Items to be purchased :";
+                    cin>>n;
+                    for(int j=0;j<n;j++)
+                    {
+                        cout<<"Enter the name ,type and units of item : ";
+                        cin>>name>>type>>units;
+                        c.searchitem(sp->getItems(),sp->getnoofitems(),name,units,type);
+                    }
+                    }
+                    break;
+                case 2 :
+                        c.c.print();
+                        break;
+                case 3:
+                    cout<<"Total Amount to be Paid : "<<c.c.getTotal()<<endl;
+                    break;
+                case 4:
+                    cout<<"Thank You Please Visit Again .....\nAmount Payable : "<<c.c.getTotal()<<endl;
+                    return 0;
+            }
+                }
+                catch(const char * msg)
+                {
+                    cout<<msg<<endl;
+                }
+                }
+                }
                 break;
 
             default:
