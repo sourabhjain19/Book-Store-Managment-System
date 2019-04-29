@@ -1,9 +1,83 @@
 #include<iostream>
 #include<string.h>
 #include<exception>
-
+#include<sqlite3.h>
+#include<vector>
 
 using namespace std;
+
+/* Database code functions */
+sqlite3 *DB;
+vector<string> shp;
+
+//single item query
+static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
+   int i;
+   for(i = 0; i<argc; i++) {
+      shp.push_back(argv[i]);
+   }
+   cout<<endl;
+   return 0;
+}
+
+//multyple items query
+struct Items
+{
+    string name;
+    float price;
+    string type;
+    string brand;
+    string publisher;
+    string author;
+    string condition;
+    int units;
+};
+
+void query_step(const char* query, vector<Items> &res)
+{
+    sqlite3_stmt * stmt;
+
+    int rc = sqlite3_prepare_v2(DB,query,-1,&stmt,NULL);
+
+    if(rc != SQLITE_OK)
+    {
+        cout<<"Error connecting to the database "<<sqlite3_errmsg(DB);
+        return;
+    }
+
+    while(1)
+    {
+        rc = sqlite3_step(stmt);
+        if(rc==SQLITE_DONE)
+            break;
+        if (rc != SQLITE_ROW) {
+            cout<<"Internal database error "<< sqlite3_errmsg(DB);
+            break;
+        }
+
+        Items it;
+        const char* text;
+        text = (const char*)sqlite3_column_text(stmt,0);
+        it.name = text?string(text):"NULL";
+        it.price = sqlite3_column_int(stmt,1);
+        text = (const char*)sqlite3_column_text(stmt,2);
+        it.type = text?string(text):"NULL";
+        text = (const char*)sqlite3_column_text(stmt,3);
+        it.brand = text?string(text):"NULL";
+        text = (const char*)sqlite3_column_text(stmt,4);
+        it.publisher = text?string(text):"NULL";
+        text = (const char*)sqlite3_column_text(stmt,5);
+        it.author = text?string(text):"NULL";
+        text = (const char*)sqlite3_column_text(stmt,6);
+        it.condition = text?string(text):"NULL";
+        it.units = sqlite3_column_int(stmt,7);
+        res.push_back(it);
+    }
+    sqlite3_finalize(stmt);
+}
+
+/*end database code*/
+
 
 class items
 {
@@ -230,7 +304,6 @@ public:
     {
         i[noofitems]=ii;
         noofitems++;
-        cout<<"Items Successfully Added"<<endl;
     }
 
     void removeitems(string itemname,string type)
@@ -287,14 +360,55 @@ shop* shop::instance=NULL;
 
 int main(int argc, char** argv)
 {
-    int choice,choice1,choice2,n,flag;
+    int choice,choice1,choice2,n,flag; //for switch statements
     string name,type;
     int price,units;
     string brand,condition;
     customer cust[100];
     items *itms[100];
     shop *sp;
-    sp = sp->getinstance("Oxford",12,"Vidyanagar, Hubli","Admin", itms, cust);
+
+    //Connecting database
+    int exit = 0;
+    char *zErrMsg = 0;
+    exit = sqlite3_open("data.db", &DB);
+    if (exit) {
+        std::cerr << "Error open DB "<< std::endl;
+        return (-1);
+    }
+    else
+        std::cout << "Database connected successfully" << std::endl;
+
+
+    //Initialisation code
+    
+    sqlite3_exec(DB, "select * from shop",callback,0,&zErrMsg);
+    sp = sp->getinstance(*(shp.begin()),stoi(*(shp.begin()+1)),*(shp.begin()+2),*(shp.begin()+3), itms, cust);
+    
+    vector<Items> res;
+
+    query_step("select * from items",res);
+
+    for(auto i=res.begin();i!=res.end();i++)
+    {
+        if((*i).type=="stationary")
+        {
+            items *tempi = new stationary((*i).name,(*i).price,(*i).units,(*i).brand);
+            sp->additems(tempi);
+        }
+        else if((*i).type=="book")
+        {
+            items *tempi = new book((*i).name,(*i).price,(*i).units,(*i).author,(*i).condition);
+            sp->additems(tempi);
+        }
+        else
+        {
+            items *tempi = new newspaper((*i).name,(*i).price,(*i).units,(*i).publisher);
+            sp->additems(tempi);
+        }
+    }
+
+
     while(1)
     {
         cout<<"__________Users__________"<<endl;
@@ -319,128 +433,127 @@ int main(int argc, char** argv)
                 cin>>choice1;
                 switch(choice1)
                 {
-                     case 1:
-                                    cout<<"Enter the No of Unique Items to be added : ";
-                                    cin>>n;
-                                    cout<<"Enter the items to be Added : "<<endl;
-                                    for(int i=0;i<n;i++)
-                                    {
-                                        cout<<"1>Stationary"<<endl;
-                                        cout<<"2>Newspaper"<<endl;
-                                        cout<<"3>Book"<<endl;
-                                         cout<<"Enter the type of Item: ";
-                                        cin>>choice2;
-                                        switch(choice2)
-                                        {
-                                            items *tempi;
-                                            case 1:cout<<"Enter the Name,Price,Units,Brand :";
-                                            cin>>name>>price>>units>>brand;
-                                            tempi=new stationary(name,price,units,brand);
-                                            sp->additems(tempi);
-                                            break;
-                                            case 2:cout<<"Enter the Name,Price,Units,Publisher:";
-                                            cin>>name>>price>>units>>brand;
-                                            tempi=new newspaper(name,price,units,brand);
-                                            sp->additems(tempi);
-                                            break;
-                                            case 3:cout<<"Enter the Name,Price,Units,Author,Condition :";
-                                            cin>>name>>price>>units>>brand>>condition;
-                                            tempi=new book(name,price,units,brand,condition);
-                                            sp->additems(tempi);
-                                            break;
-                                            default : cout<<"Invalid Entry";
-                                        }
-
-                                    }
+                    case 1:
+                       cout<<"Enter the No of Unique Items to be added : ";
+                       cin>>n;
+                       cout<<"Enter the items to be Added : "<<endl;
+                       for(int i=0;i<n;i++)
+                       {
+                           cout<<"1>Stationary"<<endl;
+                           cout<<"2>Newspaper"<<endl;
+                           cout<<"3>Book"<<endl;
+                            cout<<"Enter the type of Item: ";
+                           cin>>choice2;
+                           switch(choice2)
+                           {
+                               items *tempi;
+                               case 1:cout<<"Enter the Name,Price,Units,Brand :";
+                                      cin>>name>>price>>units>>brand;
+                                      tempi=new stationary(name,price,units,brand);
+                                      sp->additems(tempi);
+                                      break;
+                               case 2:cout<<"Enter the Name,Price,Units,Publisher:";
+                                      cin>>name>>price>>units>>brand;
+                                      tempi=new newspaper(name,price,units,brand);
+                                      sp->additems(tempi);
+                                      break;
+                               case 3:cout<<"Enter the Name,Price,Units,Author,Condition :";
+                                      cin>>name>>price>>units>>brand>>condition;
+                                      tempi=new book(name,price,units,brand,condition);
+                                      sp->additems(tempi);
+                                      break;
+                               default : cout<<"Invalid Entry";
+                           }
+                           cout<<"Items Successfully Added"<<endl;
+                       }
+                       break;
+                    case 2:
+                       cout<<"1> Stationary"<<endl;
+                       cout<<"2> Newspaper"<<endl;
+                       cout<<"3> Book"<<endl;
+                       cout<<"Enter the type of item to be deleted : ";
+                       cin>>choice2;
+                       try
+                       {
+                            switch(choice2)
+                            {
+                            case 1 :
+                                cout<<"Enter the name of Item to be deleted :";
+                                cin>>name;
+                                sp->removeitems(name,"Stationary");
+                                break;
+                            case 2:
+                                cout<<"Enter the name of Item to be deleted :";
+                                cin>>name;
+                                sp->removeitems(name,"Newspaper");
+                                break;
+                            case 3 :
+                                cout<<"Enter the name of Item to be deleted :";
+                                cin>>name;
+                                sp->removeitems(name,"Book");
+                                break;
+                            }
+                       }
+                       catch(const char * msg)
+                       {
+                           cout<<msg<<endl;
+                       }
+                       break;
+                       case 3:sp->printitems();
                                     break;
-                        case 2:
-                                       cout<<"1>Stationary"<<endl;
-                                       cout<<"2>Newspaper"<<endl;
-                                       cout<<"3>Book"<<endl;
-                                       cout<<"Enter the type of item to be deleted : ";
-                                       cin>>choice2;
-                                       try
-                                       {
-                                       switch(choice2)
-                                       {
-                                       case 1 :
-                                                        cout<<"Enter the name of Item to be deleted :";
-                                                        cin>>name;
-                                                        sp->removeitems(name,"Stationary");
-                                                        break;
-                                       case 2:
-                                                        cout<<"Enter the name of Item to be deleted :";
-                                                        cin>>name;
-                                                        sp->removeitems(name,"Newspaper");
-                                                        break;
-                                       case 3 :
-                                                        cout<<"Enter the name of Item to be deleted :";
-                                                        cin>>name;
-                                                        sp->removeitems(name,"Book");
-                                                        break;
-                                       }
-                                       }
-                                       catch(const char * msg)
-                                       {
-                                           cout<<msg<<endl;
-                                       }
-                                       break;
-                        case 3:sp->printitems();
-                                    break;
-                        case 4:return 0;
+                       case 4:return 0;
+                    }
                 }
-                }
-                break;
+            break;
             case 2:
                 {
-                cout<<"Welcome!\n";
-                cout<<"Enter your Name :";
-                cin>>name;
-                customer c(name);
-                while(1)
-                {
-                try
-                {
-                cout<<"__________Customer__________"<<endl;
-                cout<<"1>Add Items"<<endl;
-                cout<<"2> View Items"<<endl;
-                cout<<"3>Generate Bill"<<endl;
-                cout<<"4>Exit"<<endl;
-                cout<<"Enter your choice: ";
-                cin>>choice1;
-                switch(choice1)
-                {
-                case 1:
+                    cout<<"Welcome!\n";
+                    cout<<"Enter your Name :";
+                    cin>>name;
+                    customer c(name);
+                    while(1)
                     {
-                    cout<<"Enter the no of Items to be purchased :";
-                    cin>>n;
-                    for(int j=0;j<n;j++)
-                    {
-                        cout<<"Enter the name ,type and units of item : ";
-                        cin>>name>>type>>units;
-                        c.searchitem(sp->getItems(),sp->getnoofitems(),name,units,type);
+                        try
+                        {
+                            cout<<"__________Customer__________"<<endl;
+                            cout<<"1> Add Items"<<endl;
+                            cout<<"2> View Items"<<endl;
+                            cout<<"3> Generate Bill"<<endl;
+                            cout<<"4> Exit"<<endl;
+                            cout<<"Enter your choice: ";
+                            cin>>choice1;
+                            switch(choice1)
+                            {
+                            case 1:
+                                {
+                                    cout<<"Enter the no of Items to be purchased :";
+                                    cin>>n;
+                                    for(int j=0;j<n;j++)
+                                    {
+                                        cout<<"Enter the name ,type and units of item : ";
+                                        cin>>name>>type>>units;
+                                        c.searchitem(sp->getItems(),sp->getnoofitems(),name,units,type);
+                                    }
+                                }
+                                break;
+                            case 2:
+                                c.c.print();
+                                break;
+                            case 3:
+                                cout<<"Total Amount to be Paid : "<<c.c.getTotal()<<endl;
+                                break;
+                            case 4:
+                                cout<<"Thank You Please Visit Again .....\nAmount Payable : "<<c.c.getTotal()<<endl;
+                                return 0;
+                            }
+                        }
+                        catch(const char * msg)
+                        {
+                            cout<<msg<<endl;
+                        }
                     }
-                    }
-                    break;
-                case 2 :
-                        c.c.print();
-                        break;
-                case 3:
-                    cout<<"Total Amount to be Paid : "<<c.c.getTotal()<<endl;
-                    break;
-                case 4:
-                    cout<<"Thank You Please Visit Again .....\nAmount Payable : "<<c.c.getTotal()<<endl;
-                    return 0;
-            }
-                }
-                catch(const char * msg)
-                {
-                    cout<<msg<<endl;
-                }
-                }
                 }
                 break;
-
             default:
                 cout<<"\nInvalid choice!\n";
                 break;
