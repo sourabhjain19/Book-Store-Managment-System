@@ -11,7 +11,7 @@ protected :
     float price;
     int units;
 public:
-    items(string nname,float pprice,int uunits):name(nname),price(pprice),units(uunits)
+    items(string nname="",float pprice=0.0,int uunits=0):name(nname),price(pprice),units(uunits)
     {}
 
     void addunits(int u)
@@ -108,7 +108,7 @@ public:
         ii[itemcount]->addunits(units);
         itemcount+=1;
     }
-    items *  getItems()
+    items *getItems()
     {
 
     }
@@ -123,15 +123,15 @@ public:
 };
 
 class customer
-{public:
+{
+public:
     int custid;
     string custname;
     cart c;
 
 public:
-    customer(int ccustid,string ccustname,cart cc):custid(custid),custname(ccustname)
+    customer(int ccustid=-1,string ccustname=""):custid(custid),custname(ccustname)
     {
-        c=cc;
     }
 
     items *searchitem(items **it,int itemsize,string itemname,int units)
@@ -183,7 +183,7 @@ class shop
 
 public:
 
-    static shop *getinstance(string sshopname,int sshopno,string ssad,string oownername,items **ii,customer *cc)
+    static shop *getinstance(string sshopname,int sshopno,string ssad,string oownername, items **ii,customer *cc)
     {
         if(!instance)
             instance=new shop(sshopname,sshopno,ssad,oownername,ii,cc);
@@ -211,24 +211,57 @@ public:
     }
 
     void authentication()
-    {}
+    {
+        string usr,pswd;
+        cout<<"Enter the username: ";
+        cin>>usr;
+        cout<<"Enter the password: ";
+        cin>>pswd;
+        try
+        {
+            if(!(usr==ownername && pswd=="Password"))
+            {
+                throw "\nAuthentication Failure\n";
+            }
+        }
+        catch(string s)
+        {
+            cout<<s;
+        }
+        cout<<"\nAuthentication successful\n";
+    }
 };
+
+shop* shop::instance=NULL;
 
 int main(int argc, char** argv)
 {
-//    newspaper n("Navbharat",10,4,"Times");
-    cout<<"Hello World123";
-   /* sqlite3* DB;
-        int exit = 0;
-        exit = sqlite3_open("example.db", &DB);
+    int choice;
+    customer cust[100];
+    items *itms[100];
+    shop *sp;
+    sp = sp->getinstance("Oxford",12,"Vidyanagar, Hubli","Admin", itms, cust);
+    while(1)
+    {
+        cout<<"__________Users__________"<<endl;
+        cout<<"1> Owner"<<endl;
+        cout<<"2> Customer"<<endl;
+        cout<<"Enter your choice: ";
+        cin>>choice;
+        switch (choice)
+        {
+            case 1:
+                sp->authentication();
+                break;
 
-        if (exit) {
-            std::cerr << "Error open DB " << sqlite3_errmsg(DB) << std::endl;
-            return (-1);
+            case 2:
+                cout<<"Welcome!\n";
+                break;
+
+            default:
+                cout<<"\nInvalid choice!\n";
+                break;
         }
-        else
-            std::cout << "Opened Database Successfully!" << std::endl;
-        sqlite3_close(DB);
-     */
+    }
     return 0;
 }
