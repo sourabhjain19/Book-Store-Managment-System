@@ -110,7 +110,10 @@ public:
     {
         units=units-u;
     }
-
+    int getunits()
+    {
+        return units;
+    }
     string getName()
     {
         return name;
@@ -179,7 +182,7 @@ public:
 
 class cart
 {
-    items **ii;
+    items *ii[200];
     int totalprice;
     int itemcount;
 
@@ -193,7 +196,7 @@ public:
     {
         ii[itemcount]=itm;
         ii[itemcount]->addunits(units);
-        itemcount+=1;
+        itemcount++;
     }
     items **getItems()
     {
@@ -209,9 +212,10 @@ public:
 
     int getTotal()
     {
+        totalprice=0;
         for(int i=0;i<itemcount;i++)
         {
-            totalprice+=ii[i]->getPrice();
+            totalprice=totalprice+(ii[i]->getPrice())*ii[i]->getunits();
         }
         return totalprice;
     }
@@ -225,32 +229,33 @@ class customer
 {
 public:
     string custname;
-    cart c;
+    cart c1;
 
 public:
     customer(string ccustname=""):custname(ccustname)
     {
     }
 
-    items *searchitem(items **it,int itemsize,string itemname,int units,string type)
+    void searchitem(items *it[],int itemsize,string itemname,int units,string type)
     {
         int flag=0;
         for(int i=0;i<itemsize;i++)
         {
-            if(it[i]->getName()==itemname && it[i]->getType()==type)
+            if(it[i]->getName()==itemname && it[i]->getType()==type && it[i]->getunits()>=units)
             {
                 flag=1;
                 it[i]->subtractunits(units);
                 additemtocart(it[i],units);
+                break;
             }
         }
         if(flag==0)
             throw "Item Not Found";
     }
 
-    bool additemtocart(items *item,int units)
+    void additemtocart(items *item,int units)
     {
-        c.addItem(item,units);
+        c1.addItem(item,units);
     }
 };
 
@@ -264,7 +269,7 @@ public:
 
     void print()
     {
-        cout<<"Total bill to be paid is  "<<cust.c.getTotal()<<endl;
+        cout<<"Total bill to be paid is  "<<cust.c1.getTotal()<<endl;
     }
 };
 
@@ -298,7 +303,7 @@ public:
     }
     items **getItems()
     {
-        return this->i;
+        return i;
     }
     void printitems()
     {
@@ -397,10 +402,10 @@ int main(int argc, char** argv)
 
 
     //Initialisation code
-    
+
     sqlite3_exec(DB, "select * from shop",callback,0,&zErrMsg);
     sp = sp->getinstance(*(shp.begin()),stoi(*(shp.begin()+1)),*(shp.begin()+2),*(shp.begin()+3), itms, cust);
-    
+
     vector<Items> res;
 
     query_step("select * from items",res);
@@ -561,7 +566,7 @@ int main(int argc, char** argv)
                     cout<<"Enter your Name :";
                     cin>>name;
                     customer c(name);
-                    cout<<"Hello"+ c.custname<<endl;
+                    cout<<"Hello "+ c.custname<<endl;
                     while(1)
                     {
                         try
@@ -589,17 +594,17 @@ int main(int argc, char** argv)
                                 }
                                 break;
                             case 2:
-                                c.c.print();
+                                c.c1.print();
                                 break;
                             case 3:
                                 cout<<"The items are:"<<endl;
                                 sp->printitems();
                                 break;
                             case 4:
-                                cout<<"Total Amount to be Paid : "<<c.c.getTotal()<<endl;
+                                cout<<"Total Amount to be Paid : "<<c.c1.getTotal()<<endl;
                                 break;
                             case 5:
-                                cout<<"Thank You Please Visit Again .....\nAmount Payable : "<<c.c.getTotal()<<endl;
+                                cout<<"Thank You Please Visit Again .....\nAmount Payable : "<<c.c1.getTotal()<<endl;
                                 return 0;
                             default:
                                 cout<<"Invalid choice"<<endl;
