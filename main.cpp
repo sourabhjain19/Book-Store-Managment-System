@@ -29,7 +29,6 @@ struct Items
     string brand;
     string publisher;
     string author;
-    string condition;
     int units;
 };
 
@@ -68,9 +67,7 @@ void query_step(const char* query, vector<Items> &res)
         it.publisher = text?string(text):"NULL";
         text = (const char*)sqlite3_column_text(stmt,5);
         it.author = text?string(text):"NULL";
-        text = (const char*)sqlite3_column_text(stmt,6);
-        it.condition = text?string(text):"NULL";
-        it.units = sqlite3_column_int(stmt,7);
+        it.units = sqlite3_column_int(stmt,6);
         res.push_back(it);
     }
     sqlite3_finalize(stmt);
@@ -93,7 +90,7 @@ void stoa(string s, char c[])
 
 class items
 {
-protected :
+protected:
     string name;
     float price;
     int units;
@@ -125,7 +122,7 @@ public:
     }
     virtual void getdetails()=0;
     virtual string getType()=0;
-
+    virtual string getXtra()=0;
 };
 
 class stationary:public items
@@ -141,7 +138,11 @@ public:
     }
     string getType()
     {
-        return "Stationary";
+        return "stationary";
+    }
+    string getXtra()
+    {
+        return brand;
     }
 };
 
@@ -154,29 +155,37 @@ public:
     {}
     void getdetails()
     {
-                cout<<"Name :"<<name<<endl<<"Price : "<<price<<endl<<"Units :  "<<units<<endl<<"Publisher :"<<publisher<<endl;
+        cout<<"Name :"<<name<<endl<<"Price : "<<price<<endl<<"Units :  "<<units<<endl<<"Publisher :"<<publisher<<endl;
     }
     string getType()
     {
-        return "Newspaper";
+        return "newspaper";
+    }
+    string getXtra()
+    {
+        return publisher;
     }
 };
 
 class book:public items
 {
     string author;
-    string condition;
 
 public:
-    book(string nname,float pprice,int uunits,string aauthor,string ccondition):author(aauthor),condition(ccondition),items(nname,pprice,uunits)
+    book(string nname,float pprice,int uunits,string aauthor):author(aauthor),items(nname,pprice,uunits)
     {}
     void getdetails()
     {
-        cout<<"Name :"<<name<<endl<<"Price : "<<price<<endl<<"Units :  "<<units<<endl<<"Author :"<<author<<endl<<"Condition :"<<condition<<endl;
+        cout<<"Name :"<<name<<endl<<"Price : "<<price<<endl<<"Units :  "<<units<<endl<<"Author :"<<author<<endl;
     }
     string getType()
     {
-        return "Book";
+        return "book";
+    }
+
+    string getXtra()
+    {
+        return author;
     }
 };
 
@@ -245,7 +254,22 @@ public:
             {
                 flag=1;
                 it[i]->subtractunits(units);
-                additemtocart(it[i],units);
+                items *tempi;
+                if(type=="book")
+                    tempi = new book(it[i]->getName(),it[i]->getPrice(),it[i]->getunits(),it[i]->getXtra());
+                else if(type=="newspaper")
+                    tempi = new newspaper(it[i]->getName(),it[i]->getPrice(),it[i]->getunits(),it[i]->getXtra());
+                else if(type=="stationary")
+                    tempi = new stationary(it[i]->getName(),it[i]->getPrice(),it[i]->getunits(),it[i]->getXtra());
+
+                additemtocart(tempi,units);
+                string quer = "update items set units=" + to_string(it[i]->getunits()) + " where name='" + itemname +"' and type='"+ type +"'";
+                char c[200];
+                stoa(quer,c);
+                char *zErrMsg=0;
+                sqlite3_exec(DB,"begin transaction",callback,0,&zErrMsg);
+                sqlite3_exec(DB,c,callback,0,&zErrMsg);
+                sqlite3_exec(DB,"commit",callback,0,&zErrMsg);
                 break;
             }
         }
@@ -382,7 +406,7 @@ int main(int argc, char** argv)
     string name,type;
     int units;
     float price;
-    string brand,condition;
+    string brand;
     customer cust[100];
     items *itms[100];
     shop *sp;
@@ -419,7 +443,7 @@ int main(int argc, char** argv)
         }
         else if((*i).type=="book")
         {
-            items *tempi = new book((*i).name,(*i).price,(*i).units,(*i).author,(*i).condition);
+            items *tempi = new book((*i).name,(*i).price,(*i).units,(*i).author);
             sp->additems(tempi);
         }
         else
@@ -476,7 +500,7 @@ int main(int argc, char** argv)
                                               tempi=new stationary(name,price,units,brand);
                                               sp->additems(tempi);
                                               sqlite3_exec(DB,"begin transaction",callback,0,&zErrMsg);
-                                              quer="insert into items values('" + name + "'," + to_string(price) +"," + "'stationary'" + ",'" + brand +"',?,?,?," + to_string(units) +")";
+                                              quer="insert into items values('" + name + "'," + to_string(price) +"," + "'stationary'" + ",'" + brand +"',?,?," + to_string(units) +")";
                                               stoa(quer,c);
                                               sqlite3_exec(DB,c,callback,0,&zErrMsg);
                                               sqlite3_exec(DB,"commit",callback,0,&zErrMsg);
@@ -486,17 +510,17 @@ int main(int argc, char** argv)
                                               tempi=new newspaper(name,price,units,brand);
                                               sp->additems(tempi);
                                               sqlite3_exec(DB,"begin transaction",callback,0,&zErrMsg);
-                                              quer="insert into items values('" + name + "'," + to_string(price) +"," + "'newspaper'" + ",?,'" + brand +"',?,?," + to_string(units) +")";
+                                              quer="insert into items values('" + name + "'," + to_string(price) +"," + "'newspaper'" + ",?,'" + brand +"',?," + to_string(units) +")";
                                               stoa(quer,c);
                                               sqlite3_exec(DB,c,callback,0,&zErrMsg);
                                               sqlite3_exec(DB,"commit",callback,0,&zErrMsg);
                                               break;
-                                       case 3:cout<<"Enter the Name,Price,Units,Author,Condition :";
-                                              cin>>name>>price>>units>>brand>>condition;
-                                              tempi=new book(name,price,units,brand,condition);
+                                       case 3:cout<<"Enter the Name,Price,Units,Author :";
+                                              cin>>name>>price>>units>>brand;
+                                              tempi=new book(name,price,units,brand);
                                               sp->additems(tempi);
                                               sqlite3_exec(DB,"begin transaction",callback,0,&zErrMsg);
-                                              quer="insert into items values('" + name + "'," + to_string(price) +"," + "'book'" + ",?,?,'" + brand + "','" + condition +"'," + to_string(units) +")";
+                                              quer="insert into items values('" + name + "'," + to_string(price) +"," + "'book'" + ",?,?,'" + brand + "'," + to_string(units) +")";
                                               stoa(quer,c);
                                               sqlite3_exec(DB,c,callback,0,&zErrMsg);
                                               sqlite3_exec(DB,"commit",callback,0,&zErrMsg);
